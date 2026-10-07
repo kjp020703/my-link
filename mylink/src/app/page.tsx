@@ -16,16 +16,19 @@ export default function ProfilePage() {
           {/* 뱃지 */}
           <div className="mt-2.5 flex flex-wrap justify-center gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
-              🎓 대학생
+              💼 취업준비생
             </span>
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
-              ⚡ 바이브 코딩
+              🔬 반도체 공정기술
+            </span>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+              ⚡ Process Engineer
             </span>
           </div>
 
           {/* 소개글 */}
           <p className="mt-5 text-base leading-relaxed text-zinc-600 dark:text-zinc-300">
-            안녕하세요 ! 바이브 코딩을 배우고 있는 대학생입니다.
+            반도체 8대 공정과 소자 특성에 대한 이해를 바탕으로, 공정 최적화와 수율 개선을 이끌어갈 반도체 공정기술 엔지니어 취업준비생 김재표입니다.
           </p>
 
           {/* 구분선 */}
@@ -34,12 +37,12 @@ export default function ProfilePage() {
           {/* 링크 / 소셜 버튼 영역 (확장 가능) */}
           <div className="flex w-full flex-col gap-2.5">
             <a
-              href="https://github.com"
+              href="https://linkedin.com"
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
-              GitHub 방문하기
+              LinkedIn 프로필 방문하기
             </a>
             <a
               href="mailto:contact@example.com"

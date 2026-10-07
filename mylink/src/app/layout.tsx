@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "김재표 | 프로필",
-  description: "김재표의 프로필 페이지입니다.",
+  title: "김재표 | 반도체 공정기술 엔지니어",
+  description: "반도체 공정기술 엔지니어 김재표의 프로필 페이지입니다.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
