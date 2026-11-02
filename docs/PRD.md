@@ -8,7 +8,9 @@
 - **한 줄 정의**: 크리에이터와 1인 브랜드를 위한 실시간 반응형 다중 링크 프로필 서비스
 - **구동 환경**: 클라이언트 전용 데모 (LocalStorage 및 Mock Data 기반 독립 구동 SPA)
 - **핵심 기술 스택**:
-  - **프레임워크/UI**: React / Next.js, Tailwind CSS, Lucide React (아이콘)
+  - **프레임워크**: React 19 / Next.js 16 (App Router)
+  - **디자인 시스템**: **shadcn/ui** (Preset `b7WQbDtnU`, Base Color `taupe`, Tailwind CSS v4)
+  - **아이콘**: Lucide React
   - **전역 상태 관리**: **Zustand** (`persist` 미들웨어를 통한 `localStorage` 자동 영속화)
 - **단계별 개발 전략**:
   - 🎯 **Phase 1 (현재 목표 - 시연용 MVP)**: **LocalStorage 기반 프로필 페이지 및 기본 링크/블록 렌더링 & 편집**
@@ -93,6 +95,7 @@ graph LR
 | **THM-02** | 버튼 스타일 | - 모양: 직사각형(Square), 라운드(Rounded), 알약형(Pill)<br>- 스타일: Fill(단색 채우기), Outline(테두리), Shadow(그림자), Glass(유리 효과) | **P0 (필수)** |
 | **THM-03** | 텍스트 & 폰트 컬러 | 배경에 맞는 텍스트 가독성 색상(다크/라이트) 적용 | **P0 (필수)** |
 | **THM-04** | 모바일 반응형 컨테이너 | 스마트폰 화면 비율(Max-width 480px)로 중앙 정렬된 깔끔한 모바일 뷰 | **P0 (필수)** |
+| **THM-05** | **shadcn/ui 기반 UI 아키텍처** | 모든 기본 UI 요소는 shadcn/ui 기반 컴포넌트(Button, Avatar, Card, Separator 등)와 CSS 변수 디자인 토큰(`globals.css`)을 활용하여 일관된 룩앤필 구축 | **P0 (필수)** |
 
 ---
 
@@ -219,6 +222,8 @@ export interface LinkBlock extends BaseBlock {
   url: string;
   icon?: string;
   thumbnailUrl?: string;
+  description?: string;     // 링크 상세 설명 / 서브텍스트
+  badge?: string;           // 강조 뱃지 (e.g. "HOT", "NEW", "FREE")
 }
 
 export interface HeaderBlock extends BaseBlock {
@@ -244,19 +249,147 @@ export interface MyLinkStoreData {
 }
 ```
 
+### 6.1 기본 Mock 데이터 명세 (Default Mock Data Specification)
+
+서비스 최초 접속 시 또는 '기본값 복원' 실행 시 주입되는 공식 더미 데이터입니다. (`src/mockData.ts`에 정의)
+
+```typescript
+export const defaultMockData: MyLinkStoreData = {
+  profile: {
+    username: "alex_creator",
+    displayName: "Alex Kim ✨",
+    bio: "디지털 프로덕트를 만드는 풀스택 개발자 & 크리에이터 🚀\n매주 실무 테크 팁과 유용한 생산성 도구를 공유합니다.",
+    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
+    socials: {
+      github: "https://github.com/alexkim-dev",
+      youtube: "https://youtube.com/@alex_tech",
+      twitter: "https://x.com/alexkim",
+      instagram: "https://instagram.com/alex.techlife",
+      email: "contact@alexkim.dev",
+    },
+  },
+  theme: {
+    backgroundType: "gradient",
+    backgroundColor: "#0f172a",
+    gradientStart: "#3b82f6",
+    gradientEnd: "#8b5cf6",
+    buttonShape: "pill",
+    buttonStyle: "shadow",
+    buttonColor: "#ffffff",
+    buttonTextColor: "#0f172a",
+    textColor: "#ffffff",
+  },
+  blocks: [
+    {
+      id: "blk-1",
+      type: "header",
+      title: "📌 FEATURED & PROJECTS",
+      enabled: true,
+      order: 1,
+    },
+    {
+      id: "blk-2",
+      type: "link",
+      title: "나의 포트폴리오 웹사이트",
+      url: "https://alexkim.dev",
+      icon: "Globe",
+      thumbnailUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=100&auto=format&fit=crop&q=80",
+      description: "최신 프로젝트 작업물과 케이스 스터디",
+      enabled: true,
+      order: 2,
+    },
+    {
+      id: "blk-3",
+      type: "link",
+      title: "최신 영상: Next.js 16 풀스택 마스터하기",
+      url: "https://youtube.com/watch?v=mock-video-id",
+      icon: "Youtube",
+      badge: "HOT 🔥",
+      description: "App Router + Zustand 상태관리 실전 가이드",
+      enabled: true,
+      order: 3,
+    },
+    {
+      id: "blk-4",
+      type: "link",
+      title: "GitHub 오픈소스 프로젝트 모음",
+      url: "https://github.com/alexkim-dev",
+      icon: "Github",
+      description: "별 1.2k+ 스타를 받은 컴포넌트 라이브러리",
+      enabled: true,
+      order: 4,
+    },
+    {
+      id: "blk-5",
+      type: "divider",
+      enabled: true,
+      order: 5,
+    },
+    {
+      id: "blk-6",
+      type: "header",
+      title: "📢 ANNOUNCEMENT & RESOURCES",
+      enabled: true,
+      order: 6,
+    },
+    {
+      id: "blk-7",
+      type: "text",
+      content: "💡 11월 한정 1:1 커리어 커피챗 및 코드 리뷰 멘토링 신청을 받고 있습니다. 부담 없이 신청해주세요!",
+      enabled: true,
+      order: 7,
+    },
+    {
+      id: "blk-8",
+      type: "link",
+      title: "1:1 커피챗 & 멘토링 예약하기",
+      url: "https://calendly.com/alexkim/coffee-chat",
+      icon: "Coffee",
+      description: "주니어 개발자 취업 및 포트폴리오 피드백",
+      enabled: true,
+      order: 8,
+    },
+    {
+      id: "blk-9",
+      type: "link",
+      title: "사이드 프로젝트 스타터 킷 다운로드",
+      url: "https://alexkim.gumroad.com/l/starter-kit",
+      icon: "Download",
+      badge: "FREE",
+      description: "Next.js + Tailwind + shadcn/ui 보일러플레이트",
+      enabled: true,
+      order: 9,
+    },
+    {
+      id: "blk-10",
+      type: "link",
+      title: "주간 프론트엔드 트렌드 뉴스레터",
+      url: "https://alextech.substack.com",
+      icon: "Mail",
+      description: "매주 월요일 아침 배달되는 테크 인사이트",
+      enabled: true,
+      order: 10,
+    },
+  ],
+};
+```
+
 ---
 
 ## 7. Phase 1 구현 체크리스트 (시연 준비)
 
-- [ ] **1. Mock 데이터 및 타입 정의 (`types.ts`, `mockData.ts`)**
-  - 알차게 구성된 기본 인플루언서 프로필, 다채로운 링크 및 헤더 블록 데이터 준비
-- [ ] **2. Zustand 스토어 및 LocalStorage 영속화 모듈 (`useMyLinkStore.ts`)**
+- [x] **0. shadcn/ui 디자인 시스템 셋업 (`components.json`, preset `b7WQbDtnU`)**
+  - 테마 토큰, CSS 변수(`globals.css`), 유틸리티(`cn`) 초기화 완료
+- [x] **1. Mock 데이터 및 타입 정의 (`types.ts`, `mockData.ts`)**
+  - PRD 6.1에 명시된 기본 크리에이터 Mock 데이터(`defaultMockData`) 적용
+  - 다채로운 링크, 헤더, 텍스트, 디바이더 블록 및 소셜 아이콘 완비
+- [x] **2. Zustand 스토어 및 LocalStorage 영속화 모듈 (`useMyLinkStore.ts`)**
   - `persist` 설정 및 상태 로드/리셋 액션 구현
-- [ ] **3. 프로필 헤더 컴포넌트 (`ProfileHeader.tsx`)**
-  - 아바타, 이름, Bio, 소셜 아이콘 바
-- [ ] **4. 블록 렌더러 컴포넌트 (`BlockRenderer.tsx`, `LinkCard.tsx` 등)**
-  - 링크 카드, 헤더, 텍스트, 디바이더 렌더링
-- [ ] **5. 테마 스타일 래퍼 (`ThemeContainer.tsx`)**
+- [x] **3. 프로필 헤더 컴포넌트 (`ProfileHeader.tsx`)**
+  - shadcn/ui `Avatar` 활용, 이름, Bio, 소셜 아이콘 바
+- [x] **4. 블록 렌더러 컴포넌트 (`BlockRenderer.tsx`, `LinkCard.tsx` 등)**
+  - shadcn/ui `Button`, `Card`, `Separator` 기반 링크 카드, 헤더, 텍스트, 디바이더 렌더링
+- [x] **5. 테마 스타일 래퍼 (`ThemeContainer.tsx`)**
   - 배경 그라디언트, 버튼 스타일, 텍스트 색상 동적 적용
-- [ ] **6. 프로필 메인 페이지 (`page.tsx`)**
+- [x] **6. 프로필 메인 페이지 (`page.tsx`)**
   - 모바일 프레임 중앙 정렬 레이아웃 및 시연용 '기본 데이터 초기화' 버튼 탑재
