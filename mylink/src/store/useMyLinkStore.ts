@@ -12,6 +12,14 @@ export interface MyLinkState extends MyLinkStoreData {
   setTheme: (theme: Partial<MyLinkTheme>) => void;
   toggleBlock: (id: string) => void;
   addBlock: (block: Block) => void;
+  addLinkBlock: (data: {
+    title: string;
+    url: string;
+    description?: string;
+    badge?: string;
+    icon?: string;
+    thumbnailUrl?: string;
+  }) => void;
   deleteBlock: (id: string) => void;
   updateBlock: (id: string, updatedBlock: Partial<Block>) => void;
 }
@@ -55,6 +63,30 @@ export const useMyLinkStore = create<MyLinkState>()(
         set((state) => ({
           blocks: [...state.blocks, block],
         }));
+      },
+
+      addLinkBlock: (data) => {
+        set((state) => {
+          const nextOrder =
+            state.blocks.length > 0
+              ? Math.max(...state.blocks.map((b) => b.order)) + 1
+              : 1;
+          const newBlock: Block = {
+            id: `blk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            type: "link",
+            enabled: true,
+            order: nextOrder,
+            title: data.title,
+            url: data.url,
+            description: data.description,
+            badge: data.badge,
+            icon: data.icon,
+            thumbnailUrl: data.thumbnailUrl,
+          };
+          return {
+            blocks: [...state.blocks, newBlock],
+          };
+        });
       },
 
       deleteBlock: (id) => {

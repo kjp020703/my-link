@@ -393,3 +393,5 @@ export const defaultMockData: MyLinkStoreData = {
   - 배경 그라디언트, 버튼 스타일, 텍스트 색상 동적 적용
 - [x] **6. 프로필 메인 페이지 (`page.tsx`)**
   - 모바일 프레임 중앙 정렬 레이아웃 및 시연용 '기본 데이터 초기화' 버튼 탑재
+- [x] **7. 다이얼로그 기반 링크 추가 기능 (`AddLinkDialog.tsx`, 로컬 상태 영속화 연동)**
+  - 모달 다이얼로그 폼, 실시간 미리보기, 뱃지/아이콘/썸네일 선택 지원, Zustand & LocalStorage 자동 영속화
