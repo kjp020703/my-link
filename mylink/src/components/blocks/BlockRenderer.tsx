@@ -6,6 +6,8 @@ import { LinkCard } from "./LinkCard";
 import { HeaderBlock } from "./HeaderBlock";
 import { TextBlock } from "./TextBlock";
 import { DividerBlock } from "./DividerBlock";
+import { getTimestampMillis } from "@/lib/firestoreLinks";
+import { Link as LinkIcon } from "lucide-react";
 
 interface BlockRendererProps {
   blocks: Block[];
@@ -14,15 +16,32 @@ interface BlockRendererProps {
 
 export function BlockRenderer({ blocks, theme }: BlockRendererProps) {
   // 1. enabled === true 필터링
-  // 2. order 기준 오름차순 정렬
+  // 2. createdAt 기준 최신순 (내림차순) 정렬
   const visibleBlocks = blocks
     .filter((b) => b.enabled)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => {
+      const timeA = getTimestampMillis((a as any).createdAt);
+      const timeB = getTimestampMillis((b as any).createdAt);
+      if (timeA && timeB && timeA !== timeB) {
+        return timeB - timeA; // 최신순
+      }
+      if (timeA && !timeB) return -1;
+      if (!timeA && timeB) return 1;
+      return (b.order || 0) - (a.order || 0);
+    });
 
   if (visibleBlocks.length === 0) {
     return (
-      <div className="py-12 text-center opacity-60 text-sm">
-        등록된 링크나 콘텐츠가 없습니다.
+      <div className="py-12 px-4 text-center rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center opacity-70">
+          <LinkIcon className="w-5 h-5" />
+        </div>
+        <p className="text-sm font-semibold opacity-90 mb-1">
+          등록된 링크가 없습니다
+        </p>
+        <p className="text-xs opacity-60">
+          상단의 '새로운 링크 블록 추가하기'를 눌러 링크를 등록해보세요.
+        </p>
       </div>
     );
   }

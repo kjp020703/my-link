@@ -6,6 +6,7 @@ import {
   addLinkToFirestore,
   deleteLinkFromFirestore,
   updateLinkInFirestore,
+  sortLinksByCreatedAtDesc,
 } from "@/lib/firestoreLinks";
 
 export interface MyLinkState extends MyLinkStoreData {
@@ -34,6 +35,7 @@ export const useMyLinkStore = create<MyLinkState>()(
   persist(
     (set, get) => ({
       ...defaultMockData,
+      blocks: [], // Firestore (users/anonymous/links)에서 로드된 링크들이 저장됨
       hasHydrated: false,
       setHasHydrated: (state: boolean) => set({ hasHydrated: state }),
 
@@ -41,7 +43,6 @@ export const useMyLinkStore = create<MyLinkState>()(
         set({
           profile: { ...defaultMockData.profile },
           theme: { ...defaultMockData.theme },
-          blocks: [...defaultMockData.blocks],
         });
       },
 
@@ -87,46 +88,33 @@ export const useMyLinkStore = create<MyLinkState>()(
         const currentBlocks = get().blocks;
         const nextOrder =
           currentBlocks.length > 0
-            ? Math.max(...currentBlocks.map((b) => b.order)) + 1
+            ? Math.max(...currentBlocks.map((b) => b.order || 0)) + 1
             : 1;
 
         // Firestore에 링크 문서 추가
         const newBlock = await addLinkToFirestore(data, nextOrder);
 
-        // 로컬 상태 동기화 (중복 방지)
+        // 로컬 상태 즉각 동기화 (createdAt 기준 최신순 정렬)
         set((state) => {
           const exists = state.blocks.some((b) => b.id === newBlock.id);
-          if (exists) {
-            return {
-              blocks: state.blocks.map((b) =>
-                b.id === newBlock.id ? newBlock : b
-              ),
-            };
-          }
+          const updated = exists
+            ? state.blocks.map((b) => (b.id === newBlock.id ? newBlock : b))
+            : [newBlock, ...state.blocks];
           return {
-            blocks: [...state.blocks, newBlock].sort((a, b) => a.order - b.order),
+            blocks: sortLinksByCreatedAtDesc(updated as LinkBlock[]),
           };
         });
 
         return newBlock;
       },
 
-      // Firestore에서 조회한 최신 링크 목록을 로컬 상태와 병합
+      // Firestore에서 조회한 최신 링크 목록을 로컬 상태와 동기화 (createdAt 최신순 정렬)
       syncFirestoreLinks: (firestoreLinks) => {
-        set((state) => {
-          if (!firestoreLinks) return state;
-
-          // mock 블록(blk-로 시작) 중 firestoreLinks와 ID가 겹치지 않는 기본 블록들 유지
-          const baseBlocks = state.blocks.filter(
-            (b) => b.id.startsWith("blk-") && !firestoreLinks.some((fl) => fl.id === b.id)
-          );
-
-          // 기본 블록들과 Firestore 링크들을 합쳐서 order 순서대로 정렬
-          const merged = [...baseBlocks, ...firestoreLinks].sort(
-            (a, b) => a.order - b.order
-          );
-
-          return { blocks: merged };
+        set(() => {
+          if (!firestoreLinks || firestoreLinks.length === 0) {
+            return { blocks: [] };
+          }
+          return { blocks: sortLinksByCreatedAtDesc(firestoreLinks) };
         });
       },
 
@@ -160,6 +148,10 @@ export const useMyLinkStore = create<MyLinkState>()(
     {
       name: "mylink-storage",
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        profile: state.profile,
+        theme: state.theme,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

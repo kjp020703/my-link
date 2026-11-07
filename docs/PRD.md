@@ -399,3 +399,7 @@ export const defaultMockData: MyLinkStoreData = {
   - 링크 추가 시 Cloud Firestore (`users/anonymous/links`) 컬렉션에 자동 영속화
   - 실시간 리스너(`onSnapshot`)를 통한 로컬 상태 자동 동기화 (`syncFirestoreLinks`)
   - 저장 진행 중 로딩 스피너 및 오류 안내 토스트/배너 제공
+- [x] **9. 페이지 로드 시 Firestore 링크 조회 및 최신순 정렬 (`users/anonymous/links`)**
+  - 페이지 진입 시 Firestore `users/anonymous/links` 경로에서 `createdAt` 기준 최신순(내림차순) 정렬 조회
+  - 실시간 구독(`onSnapshot`) 연동으로 새 링크 추가 시 목록 자동 갱신
+  - 데이터 로딩 중 스켈레톤 UI, 빈 목록 Empty State, 예외 재시도 처리

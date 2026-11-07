@@ -8,10 +8,12 @@ import { BlockRenderer } from "@/components/blocks/BlockRenderer";
 import { ThemeContainer } from "@/components/theme/ThemeContainer";
 import { AddLinkDialog } from "@/components/dialogs/AddLinkDialog";
 import { subscribeLinksFromFirestore } from "@/lib/firestoreLinks";
-import { RotateCcw, Check, Sparkles, Plus } from "lucide-react";
+import { RotateCcw, Check, Sparkles, Plus, Loader2, AlertCircle } from "lucide-react";
 
 export default function MyLinkProfilePage() {
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
@@ -27,14 +29,19 @@ export default function MyLinkProfilePage() {
 
   useEffect(() => {
     setMounted(true);
+    setIsLoading(true);
+    setFetchError(null);
 
-    // Firestore (users/anonymous/links) 실시간 링크 구독 및 동기화
+    // Firestore (users/anonymous/links) createdAt 최신순 실시간 링크 구독 및 로드
     const unsubscribe = subscribeLinksFromFirestore(
       (firestoreLinks) => {
         syncFirestoreLinks(firestoreLinks);
+        setIsLoading(false);
       },
       (error) => {
-        console.warn("Firestore 링크 구독 오류 (오프라인 모드로 폴백):", error);
+        console.warn("Firestore 링크 구독 오류:", error);
+        setIsLoading(false);
+        setFetchError("Firestore에서 링크를 불러오지 못했습니다.");
       }
     );
 
@@ -46,7 +53,7 @@ export default function MyLinkProfilePage() {
   // SSR 단계나 초기 렌더 단계에서는 defaultMockData를 사용하여 Hydration 불일치 방지
   const currentProfile = mounted ? profile : defaultMockData.profile;
   const currentTheme = mounted ? theme : defaultMockData.theme;
-  const currentBlocks = mounted ? blocks : defaultMockData.blocks;
+  const currentBlocks = blocks;
 
   const handleReset = () => {
     resetToDefault();
@@ -142,9 +149,51 @@ export default function MyLinkProfilePage() {
         </button>
       </div>
 
-      {/* 2. 블록 목록 렌더링 영역 (링크, 헤더, 텍스트, 디바이더) */}
+      {/* 2. 블록 목록 렌더링 영역 (Firestore users/anonymous/links) */}
       <div className="w-full flex-1">
-        <BlockRenderer blocks={currentBlocks} theme={currentTheme} />
+        {isLoading ? (
+          <div className="w-full flex flex-col space-y-3 py-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="w-full h-16 rounded-2xl bg-white/10 border border-white/15 animate-pulse"
+              />
+            ))}
+            <div className="flex items-center justify-center gap-2 pt-2 text-xs opacity-70">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Firestore에서 링크 목록을 불러오는 중...</span>
+            </div>
+          </div>
+        ) : fetchError ? (
+          <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs text-center space-y-2 backdrop-blur-sm">
+            <div className="flex items-center justify-center gap-1.5">
+              <AlertCircle className="w-4 h-4 text-rose-400" />
+              <p>{fetchError}</p>
+            </div>
+            <button
+              onClick={() => {
+                setIsLoading(true);
+                setFetchError(null);
+                import("@/lib/firestoreLinks").then(({ getLinksFromFirestore }) => {
+                  getLinksFromFirestore()
+                    .then((links) => {
+                      syncFirestoreLinks(links);
+                      setIsLoading(false);
+                    })
+                    .catch((err) => {
+                      setIsLoading(false);
+                      setFetchError(err.message);
+                    });
+                });
+              }}
+              className="px-3 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-white font-medium cursor-pointer transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : (
+          <BlockRenderer blocks={currentBlocks} theme={currentTheme} />
+        )}
       </div>
 
       {/* 3. 하단 브랜딩 풋터 */}

@@ -33,6 +33,8 @@ export interface BaseBlock {
   type: BlockType;
   enabled: boolean;
   order: number;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export interface LinkBlock extends BaseBlock {
