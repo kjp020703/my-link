@@ -7,6 +7,7 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BlockRenderer } from "@/components/blocks/BlockRenderer";
 import { ThemeContainer } from "@/components/theme/ThemeContainer";
 import { AddLinkDialog } from "@/components/dialogs/AddLinkDialog";
+import { subscribeLinksFromFirestore } from "@/lib/firestoreLinks";
 import { RotateCcw, Check, Sparkles, Plus } from "lucide-react";
 
 export default function MyLinkProfilePage() {
@@ -15,12 +16,32 @@ export default function MyLinkProfilePage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  const { profile, theme, blocks, resetToDefault, addLinkBlock } =
-    useMyLinkStore();
+  const {
+    profile,
+    theme,
+    blocks,
+    resetToDefault,
+    addLinkBlock,
+    syncFirestoreLinks,
+  } = useMyLinkStore();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+
+    // Firestore (users/anonymous/links) 실시간 링크 구독 및 동기화
+    const unsubscribe = subscribeLinksFromFirestore(
+      (firestoreLinks) => {
+        syncFirestoreLinks(firestoreLinks);
+      },
+      (error) => {
+        console.warn("Firestore 링크 구독 오류 (오프라인 모드로 폴백):", error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [syncFirestoreLinks]);
 
   // SSR 단계나 초기 렌더 단계에서는 defaultMockData를 사용하여 Hydration 불일치 방지
   const currentProfile = mounted ? profile : defaultMockData.profile;
@@ -37,7 +58,7 @@ export default function MyLinkProfilePage() {
     }, 2500);
   };
 
-  const handleAddLink = (data: {
+  const handleAddLink = async (data: {
     title: string;
     url: string;
     description?: string;
@@ -45,8 +66,8 @@ export default function MyLinkProfilePage() {
     icon?: string;
     thumbnailUrl?: string;
   }) => {
-    addLinkBlock(data);
-    setNotification(`"${data.title}" 링크가 추가되었습니다!`);
+    await addLinkBlock(data);
+    setNotification(`"${data.title}" 링크가 Firestore에 저장되었습니다!`);
     setTimeout(() => {
       setNotification(null);
     }, 3000);

@@ -395,3 +395,7 @@ export const defaultMockData: MyLinkStoreData = {
   - 모바일 프레임 중앙 정렬 레이아웃 및 시연용 '기본 데이터 초기화' 버튼 탑재
 - [x] **7. 다이얼로그 기반 링크 추가 기능 (`AddLinkDialog.tsx`, 로컬 상태 영속화 연동)**
   - 모달 다이얼로그 폼, 실시간 미리보기, 뱃지/아이콘/썸네일 선택 지원, Zustand & LocalStorage 자동 영속화
+- [x] **8. Firestore 링크 저장 마이그레이션 (`firestoreLinks.ts`, `users/anonymous/links`)**
+  - 링크 추가 시 Cloud Firestore (`users/anonymous/links`) 컬렉션에 자동 영속화
+  - 실시간 리스너(`onSnapshot`)를 통한 로컬 상태 자동 동기화 (`syncFirestoreLinks`)
+  - 저장 진행 중 로딩 스피너 및 오류 안내 토스트/배너 제공

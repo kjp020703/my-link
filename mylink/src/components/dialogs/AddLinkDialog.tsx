@@ -19,6 +19,7 @@ import {
   Check,
   AlertCircle,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import {
   GithubIcon,
@@ -37,7 +38,7 @@ interface AddLinkDialogProps {
     badge?: string;
     icon?: string;
     thumbnailUrl?: string;
-  }) => void;
+  }) => Promise<void> | void;
   currentTheme: MyLinkTheme;
 }
 
@@ -168,6 +169,8 @@ export function AddLinkDialog({
   }>({});
 
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -175,6 +178,8 @@ export function AddLinkDialog({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      setIsSubmitting(false);
+      setSubmitError(null);
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 100);
@@ -189,6 +194,8 @@ export function AddLinkDialog({
       setThumbnailUrl("");
       setTouched({});
       setSubmitAttempted(false);
+      setIsSubmitting(false);
+      setSubmitError(null);
     }
 
     return () => {
@@ -281,9 +288,10 @@ export function AddLinkDialog({
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitAttempted(true);
+    setSubmitError(null);
 
     if (!validation.isValid) {
       // 에러가 있는 필드로 첫 포커스 이동
@@ -293,16 +301,26 @@ export function AddLinkDialog({
       return;
     }
 
-    onAdd({
-      title: title.trim(),
-      url: validation.formattedUrl,
-      description: description.trim() || undefined,
-      badge: badge.trim() || undefined,
-      icon: selectedIcon,
-      thumbnailUrl: thumbnailUrl.trim() || undefined,
-    });
+    try {
+      setIsSubmitting(true);
+      await onAdd({
+        title: title.trim(),
+        url: validation.formattedUrl,
+        description: description.trim() || undefined,
+        badge: badge.trim() || undefined,
+        icon: selectedIcon,
+        thumbnailUrl: thumbnailUrl.trim() || undefined,
+      });
 
-    onClose();
+      onClose();
+    } catch (err: any) {
+      console.error("Firestore 링크 추가 오류:", err);
+      setSubmitError(
+        err?.message || "Firestore에 링크를 저장하는 중 오류가 발생했습니다. 다시 시도해주세요."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 필드별 에러 표시 여부 (터치되었거나 폼 제출을 시도했을 때)
@@ -349,13 +367,25 @@ export function AddLinkDialog({
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+            onClick={!isSubmitting ? onClose : undefined}
+            disabled={isSubmitting}
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             aria-label="닫기"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Firestore 저장 에러 안내 배너 */}
+        {submitError && (
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+            <div className="flex-1">
+              <span className="font-semibold block text-rose-200">저장 중 오류 발생</span>
+              <span className="opacity-90">{submitError}</span>
+            </div>
+          </div>
+        )}
 
         {/* 모달 본문 (스크롤 가능 영역) */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm custom-scrollbar">
@@ -679,23 +709,33 @@ export function AddLinkDialog({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors text-sm font-medium cursor-pointer"
+              onClick={!isSubmitting ? onClose : undefined}
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-xl text-neutral-300 hover:text-white hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium cursor-pointer"
             >
               취소
             </button>
             <button
               type="submit"
               form="add-link-form"
-              disabled={submitAttempted && !validation.isValid}
+              disabled={isSubmitting || (submitAttempted && !validation.isValid)}
               className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg ${
-                submitAttempted && !validation.isValid
+                isSubmitting || (submitAttempted && !validation.isValid)
                   ? "bg-neutral-700 text-neutral-400 cursor-not-allowed opacity-60 shadow-none"
                   : "bg-violet-600 hover:bg-violet-500 active:scale-95 text-white shadow-violet-600/30 cursor-pointer"
               }`}
             >
-              <Check className="w-4 h-4" />
-              <span>링크 추가하기</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Firestore에 저장 중...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>링크 추가하기</span>
+                </>
+              )}
             </button>
           </div>
         </div>
