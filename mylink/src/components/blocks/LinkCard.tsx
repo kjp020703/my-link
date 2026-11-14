@@ -1,67 +1,34 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { LinkBlock, MyLinkTheme } from "@/types";
-import {
-  Globe,
-  Coffee,
-  Download,
-  Mail,
-  ExternalLink,
-  Link as LinkIcon,
-  Sparkles,
-  BookOpen,
-  Calendar,
-  Layers,
-  Heart,
-} from "lucide-react";
-import {
-  GithubIcon,
-  YoutubeIcon,
-  TwitterXIcon,
-  InstagramIcon,
-} from "@/components/icons/BrandIcons";
+import { ExternalLink, Pencil, Trash2, Clock } from "lucide-react";
+import { renderLinkIcon } from "@/lib/linkValidation";
+import { formatUpdatedAt, formatFullDateTime } from "@/lib/dateUtils";
+import { InlineLinkEdit } from "./InlineLinkEdit";
 
 interface LinkCardProps {
   block: LinkBlock;
   theme: MyLinkTheme;
+  onUpdate?: (id: string, updates: {
+    title: string;
+    url: string;
+    description?: string;
+    badge?: string;
+    icon?: string;
+    thumbnailUrl?: string;
+  }) => Promise<void>;
+  onDeleteRequest?: (block: LinkBlock) => void;
 }
 
-// 아이콘 이름 매핑 헬퍼
-function renderIcon(iconName?: string) {
-  if (!iconName) return <LinkIcon className="w-5 h-5 flex-shrink-0" />;
+export function LinkCard({
+  block,
+  theme,
+  onUpdate,
+  onDeleteRequest,
+}: LinkCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
 
-  const key = iconName.toLowerCase();
-  switch (key) {
-    case "globe":
-      return <Globe className="w-5 h-5 flex-shrink-0" />;
-    case "youtube":
-      return <YoutubeIcon className="w-5 h-5 flex-shrink-0 text-red-500" />;
-    case "github":
-      return <GithubIcon className="w-5 h-5 flex-shrink-0" />;
-    case "coffee":
-      return <Coffee className="w-5 h-5 flex-shrink-0 text-amber-500" />;
-    case "download":
-      return <Download className="w-5 h-5 flex-shrink-0 text-blue-500" />;
-    case "mail":
-      return <Mail className="w-5 h-5 flex-shrink-0 text-emerald-500" />;
-    case "book":
-    case "bookopen":
-      return <BookOpen className="w-5 h-5 flex-shrink-0" />;
-    case "calendar":
-      return <Calendar className="w-5 h-5 flex-shrink-0" />;
-    case "heart":
-      return <Heart className="w-5 h-5 flex-shrink-0 text-rose-500" />;
-    case "instagram":
-      return <InstagramIcon className="w-5 h-5 flex-shrink-0 text-pink-500" />;
-    case "twitter":
-      return <TwitterXIcon className="w-5 h-5 flex-shrink-0 text-sky-400" />;
-    default:
-      return <Sparkles className="w-5 h-5 flex-shrink-0" />;
-  }
-}
-
-export function LinkCard({ block, theme }: LinkCardProps) {
   // 모서리 둥글기 (buttonShape)
   const getShapeClass = () => {
     switch (theme.buttonShape) {
@@ -79,12 +46,12 @@ export function LinkCard({ block, theme }: LinkCardProps) {
   const getStyleProps = () => {
     const shape = getShapeClass();
     const baseTransition =
-      "transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]";
+      "transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99]";
 
     switch (theme.buttonStyle) {
       case "outline":
         return {
-          className: `w-full flex items-center justify-between p-3.5 sm:p-4 border-2 ${shape} ${baseTransition} bg-transparent backdrop-blur-sm`,
+          className: `w-full flex items-center justify-between p-3 sm:p-4 border-2 ${shape} ${baseTransition} bg-transparent backdrop-blur-sm`,
           style: {
             borderColor: theme.buttonColor || "#ffffff",
             color: theme.textColor || "#ffffff",
@@ -92,7 +59,7 @@ export function LinkCard({ block, theme }: LinkCardProps) {
         };
       case "shadow":
         return {
-          className: `w-full flex items-center justify-between p-3.5 sm:p-4 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 ${shape} ${baseTransition}`,
+          className: `w-full flex items-center justify-between p-3 sm:p-4 shadow-xl hover:shadow-2xl ${shape} ${baseTransition}`,
           style: {
             backgroundColor: theme.buttonColor || "#ffffff",
             color: theme.buttonTextColor || "#0f172a",
@@ -100,7 +67,7 @@ export function LinkCard({ block, theme }: LinkCardProps) {
         };
       case "glass":
         return {
-          className: `w-full flex items-center justify-between p-3.5 sm:p-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-md hover:bg-white/30 ${shape} ${baseTransition}`,
+          className: `w-full flex items-center justify-between p-3 sm:p-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-md hover:bg-white/25 ${shape} ${baseTransition}`,
           style: {
             color: theme.textColor || "#ffffff",
           },
@@ -108,7 +75,7 @@ export function LinkCard({ block, theme }: LinkCardProps) {
       case "fill":
       default:
         return {
-          className: `w-full flex items-center justify-between p-3.5 sm:p-4 shadow-md ${shape} ${baseTransition}`,
+          className: `w-full flex items-center justify-between p-3 sm:p-4 shadow-md ${shape} ${baseTransition}`,
           style: {
             backgroundColor: theme.buttonColor || "#ffffff",
             color: theme.buttonTextColor || "#0f172a",
@@ -117,18 +84,63 @@ export function LinkCard({ block, theme }: LinkCardProps) {
     }
   };
 
+  // 인라인 수정 모드일 때
+  if (isEditing) {
+    return (
+      <InlineLinkEdit
+        block={block}
+        theme={theme}
+        onSave={async (updates) => {
+          if (onUpdate) {
+            await onUpdate(block.id, updates);
+          }
+        }}
+        onCancel={() => setIsEditing(false)}
+      />
+    );
+  }
+
   const styleProps = getStyleProps();
+  const updatedTimeStr = formatUpdatedAt(block.updatedAt);
+  const fullDateTime = formatFullDateTime(block.updatedAt);
+
+  const handleCardClick = () => {
+    if (block.url) {
+      window.open(block.url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsEditing(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onDeleteRequest) {
+      onDeleteRequest(block);
+    }
+  };
 
   return (
-    <a
-      href={block.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={styleProps.className}
+    <div
+      onClick={handleCardClick}
+      className={`${styleProps.className} cursor-pointer group select-none`}
       style={styleProps.style}
-      aria-label={block.title}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
+      aria-label={`${block.title} 바로가기`}
     >
-      <div className="flex items-center gap-3.5 overflow-hidden w-full min-w-0 pr-2">
+      {/* 좌측 콘텐츠 영역 (썸네일/아이콘 + 제목 + 설명 + 수정 시각) */}
+      <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 pr-2">
         {/* 썸네일 또는 아이콘 */}
         {block.thumbnailUrl ? (
           <img
@@ -138,11 +150,11 @@ export function LinkCard({ block, theme }: LinkCardProps) {
           />
         ) : (
           <div className="p-2 rounded-xl bg-black/5 dark:bg-white/10 flex-shrink-0 flex items-center justify-center">
-            {renderIcon(block.icon)}
+            {renderLinkIcon(block.icon)}
           </div>
         )}
 
-        {/* 텍스트 영역 (제목 & 서브텍스트/설명) */}
+        {/* 텍스트 영역 (제목 & 서브텍스트/설명 & 수정 시각) */}
         <div className="flex flex-col text-left overflow-hidden min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm sm:text-base leading-snug truncate">
@@ -159,13 +171,57 @@ export function LinkCard({ block, theme }: LinkCardProps) {
               {block.description}
             </p>
           )}
+          {/* 수정 시각 (updatedAt) 표시 */}
+          {updatedTimeStr && (
+            <div
+              className="flex items-center gap-1 text-[10px] opacity-60 mt-1 font-mono tracking-tight"
+              title={fullDateTime ? `최근 수정 시각: ${fullDateTime}` : undefined}
+            >
+              <Clock className="w-3 h-3 flex-shrink-0" />
+              <span>{updatedTimeStr}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 우측 링크 아이콘 */}
-      <div className="opacity-40 hover:opacity-100 flex-shrink-0 pl-1">
-        <ExternalLink className="w-4 h-4" />
+      {/* 우측 액션 버튼 영역 (외부 링크 아이콘 + 항상 표시되는 수정/삭제 버튼) */}
+      <div
+        className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 ml-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 새창 링크 아이콘 */}
+        <button
+          type="button"
+          onClick={handleCardClick}
+          title="새 창에서 열기"
+          aria-label="새 창에서 열기"
+          className="p-1.5 sm:p-2 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 transition-all opacity-75 hover:opacity-100 cursor-pointer"
+        >
+          <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        </button>
+
+        {/* 수정 버튼 (항상 표시) */}
+        <button
+          type="button"
+          onClick={handleEditClick}
+          title="링크 수정 (인라인 편집)"
+          aria-label="링크 수정"
+          className="inline-flex items-center justify-center p-1.5 sm:p-2 rounded-xl bg-violet-600/15 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30 hover:border-violet-600 transition-all shadow-sm active:scale-95 cursor-pointer"
+        >
+          <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        </button>
+
+        {/* 삭제 버튼 (항상 표시) */}
+        <button
+          type="button"
+          onClick={handleDeleteClick}
+          title="링크 삭제"
+          aria-label="링크 삭제"
+          className="inline-flex items-center justify-center p-1.5 sm:p-2 rounded-xl bg-rose-600/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 hover:border-rose-600 transition-all shadow-sm active:scale-95 cursor-pointer"
+        >
+          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        </button>
       </div>
-    </a>
+    </div>
   );
 }

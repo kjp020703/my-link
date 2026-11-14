@@ -7,6 +7,7 @@ import {
   deleteLinkFromFirestore,
   updateLinkInFirestore,
   sortLinksByCreatedAtDesc,
+  UpdateLinkInput,
 } from "@/lib/firestoreLinks";
 
 export interface MyLinkState extends MyLinkStoreData {
@@ -29,6 +30,8 @@ export interface MyLinkState extends MyLinkStoreData {
   syncFirestoreLinks: (firestoreLinks: LinkBlock[]) => void;
   deleteBlock: (id: string) => void;
   updateBlock: (id: string, updatedBlock: Partial<Block>) => void;
+  updateLinkBlock: (id: string, updates: UpdateLinkInput) => Promise<void>;
+  deleteLinkBlock: (id: string) => Promise<void>;
 }
 
 export const useMyLinkStore = create<MyLinkState>()(
@@ -132,17 +135,49 @@ export const useMyLinkStore = create<MyLinkState>()(
       },
 
       updateBlock: (id, updatedBlock) => {
+        const block = get().blocks.find((b) => b.id === id);
         set((state) => ({
           blocks: state.blocks.map((b) =>
             b.id === id ? ({ ...b, ...updatedBlock } as Block) : b
           ),
         }));
 
-        if (!id.startsWith("blk-") && updatedBlock.type === "link") {
-          updateLinkInFirestore(id, updatedBlock).catch((err) => {
+        if (!id.startsWith("blk-") && (block?.type === "link" || updatedBlock.type === "link")) {
+          updateLinkInFirestore(id, updatedBlock as UpdateLinkInput).catch((err) => {
             console.warn(`Firestore 링크 수정 동기화 실패 (id: ${id}):`, err);
           });
         }
+      },
+
+      // Firestore 연동 링크 수정 비동기 액션
+      updateLinkBlock: async (id: string, updates: UpdateLinkInput) => {
+        // Firestore에 업데이트 반영
+        await updateLinkInFirestore(id, updates);
+
+        // 로컬 상태 동기화
+        set((state) => ({
+          blocks: state.blocks.map((b) => {
+            if (b.id === id) {
+              return {
+                ...b,
+                ...updates,
+                updatedAt: new Date(),
+              } as Block;
+            }
+            return b;
+          }),
+        }));
+      },
+
+      // Firestore 연동 링크 삭제 비동기 액션
+      deleteLinkBlock: async (id: string) => {
+        // Firestore에서 삭제
+        await deleteLinkFromFirestore(id);
+
+        // 로컬 상태 동기화
+        set((state) => ({
+          blocks: state.blocks.filter((b) => b.id !== id),
+        }));
       },
     }),
     {

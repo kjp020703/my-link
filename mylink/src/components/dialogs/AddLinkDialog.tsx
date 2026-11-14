@@ -7,26 +7,19 @@ import {
   X,
   Plus,
   Link as LinkIcon,
-  Globe,
-  Coffee,
-  Download,
-  Mail,
-  BookOpen,
-  Calendar,
-  Heart,
-  Sparkles,
   Image as ImageIcon,
   Check,
   AlertCircle,
   HelpCircle,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import {
-  GithubIcon,
-  YoutubeIcon,
-  TwitterXIcon,
-  InstagramIcon,
-} from "@/components/icons/BrandIcons";
+  validateLinkInputs,
+  ICON_OPTIONS,
+  BADGE_PRESETS,
+  SAMPLE_THUMBNAILS,
+} from "@/lib/linkValidation";
 
 interface AddLinkDialogProps {
   isOpen: boolean;
@@ -40,110 +33,6 @@ interface AddLinkDialogProps {
     thumbnailUrl?: string;
   }) => Promise<void> | void;
   currentTheme: MyLinkTheme;
-}
-
-// 아이콘 프리셋 목록
-const ICON_OPTIONS = [
-  { id: "Globe", label: "웹사이트", icon: Globe },
-  { id: "Youtube", label: "유튜브", icon: YoutubeIcon, isBrand: true },
-  { id: "Github", label: "깃허브", icon: GithubIcon, isBrand: true },
-  { id: "Instagram", label: "인스타그램", icon: InstagramIcon, isBrand: true },
-  { id: "Twitter", label: "X/트위터", icon: TwitterXIcon, isBrand: true },
-  { id: "Coffee", label: "커피챗", icon: Coffee },
-  { id: "Download", label: "다운로드", icon: Download },
-  { id: "Mail", label: "뉴스레터", icon: Mail },
-  { id: "Book", label: "아티클", icon: BookOpen },
-  { id: "Calendar", label: "예약/일정", icon: Calendar },
-  { id: "Heart", label: "추천/후원", icon: Heart },
-  { id: "Sparkles", label: "스페셜", icon: Sparkles },
-];
-
-// 추천 뱃지 프리셋
-const BADGE_PRESETS = [
-  { label: "HOT 🔥", value: "HOT 🔥" },
-  { label: "NEW ✨", value: "NEW ✨" },
-  { label: "FREE 🎁", value: "FREE" },
-  { label: "EVENT 🎉", value: "EVENT" },
-  { label: "BEST ⭐", value: "BEST" },
-];
-
-// 샘플 썸네일 이미지
-const SAMPLE_THUMBNAILS = [
-  {
-    label: "개발/코드",
-    url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=100&auto=format&fit=crop&q=80",
-  },
-  {
-    label: "디자인",
-    url: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=100&auto=format&fit=crop&q=80",
-  },
-  {
-    label: "유튜브/영상",
-    url: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=100&auto=format&fit=crop&q=80",
-  },
-];
-
-// URL 유효성 검사 유틸리티 함수
-function validateUrlString(rawUrl: string): { valid: boolean; formattedUrl: string; error?: string } {
-  const trimmed = rawUrl.trim();
-  if (!trimmed) {
-    return { valid: false, formattedUrl: "", error: "링크 URL 주소를 입력해주세요." };
-  }
-
-  // 공백 포함 여부 확인
-  if (/\s/.test(trimmed)) {
-    return { valid: false, formattedUrl: "", error: "URL에는 공백을 포함할 수 없습니다." };
-  }
-
-  // 안전하지 않은 스키마 차단
-  if (/^(javascript|data|vbscript):/i.test(trimmed)) {
-    return { valid: false, formattedUrl: "", error: "보안상 안전하지 않은 URL 프로토콜입니다." };
-  }
-
-  let formatted = trimmed;
-  if (!/^https?:\/\//i.test(formatted)) {
-    formatted = "https://" + formatted;
-  }
-
-  try {
-    const parsed = new URL(formatted);
-    // 도메인(hostname)에 마침표(.)가 없거나 비정상적인 형태 방지 (예: abc)
-    if (!parsed.hostname.includes(".") || parsed.hostname.endsWith(".") || parsed.hostname.startsWith(".")) {
-      return {
-        valid: false,
-        formattedUrl: formatted,
-        error: "올바른 도메인 주소(예: example.com)를 입력해주세요.",
-      };
-    }
-    return { valid: true, formattedUrl: formatted };
-  } catch {
-    return {
-      valid: false,
-      formattedUrl: formatted,
-      error: "올바른 URL 형식(예: https://example.com)을 입력해주세요.",
-    };
-  }
-}
-
-// 썸네일 이미지 URL 유효성 검사
-function validateThumbnailUrl(rawUrl: string): { valid: boolean; error?: string } {
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return { valid: true };
-
-  let formatted = trimmed;
-  if (!/^https?:\/\//i.test(formatted)) {
-    formatted = "https://" + formatted;
-  }
-
-  try {
-    const parsed = new URL(formatted);
-    if (!parsed.hostname.includes(".")) {
-      return { valid: false, error: "올바른 이미지 URL(도메인 포함)을 입력해주세요." };
-    }
-    return { valid: true };
-  } catch {
-    return { valid: false, error: "올바른 URL 형식(https://...)을 입력해주세요." };
-  }
 }
 
 export function AddLinkDialog({
@@ -178,8 +67,6 @@ export function AddLinkDialog({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
-      setIsSubmitting(false);
-      setSubmitError(null);
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 100);
@@ -206,63 +93,23 @@ export function AddLinkDialog({
   // ESC 키 이벤트 감지
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape" && isOpen && !isSubmitting) {
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isSubmitting, onClose]);
 
   // 실시간 유효성 검사 계산 (Memoized)
   const validation = useMemo(() => {
-    const errors: {
-      title?: string;
-      url?: string;
-      description?: string;
-      badge?: string;
-      thumbnailUrl?: string;
-    } = {};
-
-    // 1. 제목 검증
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      errors.title = "링크 제목을 입력해주세요.";
-    } else if (trimmedTitle.length < 2) {
-      errors.title = "제목은 최소 2자 이상 입력해주세요.";
-    } else if (title.length > 60) {
-      errors.title = "제목은 최대 60자까지 입력 가능합니다.";
-    }
-
-    // 2. URL 검증
-    const urlResult = validateUrlString(url);
-    if (!urlResult.valid) {
-      errors.url = urlResult.error;
-    }
-
-    // 3. 서브 설명 검증
-    if (description.length > 80) {
-      errors.description = "설명은 최대 80자까지 입력 가능합니다.";
-    }
-
-    // 4. 뱃지 검증
-    if (badge.length > 15) {
-      errors.badge = "뱃지는 최대 15자까지 입력 가능합니다.";
-    }
-
-    // 5. 썸네일 URL 검증
-    const thumbResult = validateThumbnailUrl(thumbnailUrl);
-    if (!thumbResult.valid) {
-      errors.thumbnailUrl = thumbResult.error;
-    }
-
-    const isValid = Object.keys(errors).length === 0;
-
-    return {
-      errors,
-      isValid,
-      formattedUrl: urlResult.formattedUrl,
-    };
+    return validateLinkInputs({
+      title,
+      url,
+      description,
+      badge,
+      thumbnailUrl,
+    });
   }, [title, url, description, badge, thumbnailUrl]);
 
   if (!isOpen) return null;
@@ -294,7 +141,6 @@ export function AddLinkDialog({
     setSubmitError(null);
 
     if (!validation.isValid) {
-      // 에러가 있는 필드로 첫 포커스 이동
       if (validation.errors.title) {
         titleInputRef.current?.focus();
       }
@@ -313,11 +159,13 @@ export function AddLinkDialog({
       });
 
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Firestore 링크 추가 오류:", err);
-      setSubmitError(
-        err?.message || "Firestore에 링크를 저장하는 중 오류가 발생했습니다. 다시 시도해주세요."
-      );
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Firestore에 링크를 저장하는 중 오류가 발생했습니다. 다시 시도해주세요.";
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -342,7 +190,7 @@ export function AddLinkDialog({
       {/* 1. Backdrop Overlay */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
-        onClick={onClose}
+        onClick={!isSubmitting ? onClose : undefined}
       />
 
       {/* 2. Dialog Modal Window */}

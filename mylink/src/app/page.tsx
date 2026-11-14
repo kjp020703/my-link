@@ -7,7 +7,9 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BlockRenderer } from "@/components/blocks/BlockRenderer";
 import { ThemeContainer } from "@/components/theme/ThemeContainer";
 import { AddLinkDialog } from "@/components/dialogs/AddLinkDialog";
+import { DeleteConfirmDialog } from "@/components/dialogs/DeleteConfirmDialog";
 import { subscribeLinksFromFirestore } from "@/lib/firestoreLinks";
+import { LinkBlock } from "@/types";
 import { RotateCcw, Check, Sparkles, Plus, Loader2, AlertCircle } from "lucide-react";
 
 export default function MyLinkProfilePage() {
@@ -16,6 +18,7 @@ export default function MyLinkProfilePage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [linkToDelete, setLinkToDelete] = useState<LinkBlock | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   const {
@@ -24,6 +27,8 @@ export default function MyLinkProfilePage() {
     blocks,
     resetToDefault,
     addLinkBlock,
+    updateLinkBlock,
+    deleteLinkBlock,
     syncFirestoreLinks,
   } = useMyLinkStore();
 
@@ -55,13 +60,19 @@ export default function MyLinkProfilePage() {
   const currentTheme = mounted ? theme : defaultMockData.theme;
   const currentBlocks = blocks;
 
+  const showToast = (message: string) => {
+    setNotification(message);
+    setTimeout(() => {
+      setNotification((prev) => (prev === message ? null : prev));
+    }, 3000);
+  };
+
   const handleReset = () => {
     resetToDefault();
     setResetSuccess(true);
-    setNotification("기본 데이터로 복원되었습니다.");
+    showToast("기본 데이터로 복원되었습니다.");
     setTimeout(() => {
       setResetSuccess(false);
-      setNotification(null);
     }, 2500);
   };
 
@@ -74,17 +85,39 @@ export default function MyLinkProfilePage() {
     thumbnailUrl?: string;
   }) => {
     await addLinkBlock(data);
-    setNotification(`"${data.title}" 링크가 Firestore에 저장되었습니다!`);
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
+    showToast(`"${data.title}" 링크가 Firebase에 추가되었습니다!`);
+  };
+
+  const handleUpdateLink = async (
+    id: string,
+    updates: {
+      title: string;
+      url: string;
+      description?: string;
+      badge?: string;
+      icon?: string;
+      thumbnailUrl?: string;
+    }
+  ) => {
+    await updateLinkBlock(id, updates);
+    showToast(`"${updates.title}" 링크가 수정되었습니다!`);
+  };
+
+  const handleDeleteRequest = (block: LinkBlock) => {
+    setLinkToDelete(block);
+  };
+
+  const handleConfirmDelete = async (block: LinkBlock) => {
+    await deleteLinkBlock(block.id);
+    showToast(`"${block.title}" 링크가 삭제되었습니다.`);
+    setLinkToDelete(null);
   };
 
   return (
     <ThemeContainer theme={currentTheme}>
       {/* 알림 토스트 배너 */}
       {notification && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-none">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-neutral-900/90 text-white text-xs font-medium shadow-xl border border-white/20 backdrop-blur-md">
             <Check className="w-3.5 h-3.5 text-emerald-400" />
             <span>{notification}</span>
@@ -192,7 +225,12 @@ export default function MyLinkProfilePage() {
             </button>
           </div>
         ) : (
-          <BlockRenderer blocks={currentBlocks} theme={currentTheme} />
+          <BlockRenderer
+            blocks={currentBlocks}
+            theme={currentTheme}
+            onUpdateLink={handleUpdateLink}
+            onDeleteLinkRequest={handleDeleteRequest}
+          />
         )}
       </div>
 
@@ -213,6 +251,14 @@ export default function MyLinkProfilePage() {
         onClose={() => setIsAddDialogOpen(false)}
         onAdd={handleAddLink}
         currentTheme={currentTheme}
+      />
+
+      {/* 삭제 확인 모달 */}
+      <DeleteConfirmDialog
+        isOpen={Boolean(linkToDelete)}
+        block={linkToDelete}
+        onClose={() => setLinkToDelete(null)}
+        onConfirm={handleConfirmDelete}
       />
     </ThemeContainer>
   );
